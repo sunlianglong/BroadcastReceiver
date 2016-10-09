@@ -185,3 +185,177 @@ uses-permission android:name="com.sunlianglong.test"></uses-permission>
 
 
 
+#利用广播实现强制下线功能
+### Force Offline
+- 关闭所有活动的功能
+- 登陆界面以及跳转的实现
+- 新建广播接收器，利用AlertDialog实现下线
+
+> 关闭所有活动
+
+·创建一个ActivityCollector类用于管理所有的活动
+
+```java
+public class ActivityCollector {
+    public static List<Activity> activities =new ArrayList<Activity>();
+    public static void addActivity(Activity activity){
+        activities.add(activity);
+    }
+    public static void removeActivity(Activity activity){
+        activities.remove(activity);
+    }
+    public static void finishAll(){
+        for (Activity activity:activities){
+            if (!activity.isFinishing()) {
+                activity.finish();
+            }
+        }
+    }
+}
+//通过一个List来暂存活动，然后提供一个addActivity()方法用于向List中添加一个活动，
+//提供了一个removeActivity方法用于从List中移除活动，
+//最后提供了一个finishAll()方法用于将List中储存的活动全部销毁掉。
+```
+·创建BaseActivity类做为所有活动的父类
+
+```java
+public class BaseActivity extends Activity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        ActivityCollector.addActivity(this);
+        //将当前正在创建的活动添加到活动管理器中。
+    }
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+        ActivityCollector.removeActivity(this);
+        //表明将一个马上要摧毁的活动从活动管理器中移除。
+    }
+}
+```
+> 登录布局
+
+![image](D:photos\P.jpg)
+
+> 简单登录功能
+```java
+public class LoginActivity extends BaseActivity {
+    private EditText accountEdit;
+    private EditText passwordEdit;
+    private Button login;
+    @Override
+    protected void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.login);
+        accountEdit = (EditText)findViewById(R.id.account);
+        passwordEdit = (EditText)findViewById(R.id.password);
+        login = (Button)findViewById(R.id.login);
+        login.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String account = accountEdit.getText().toString();
+                String password = passwordEdit.getText().toString();
+                if(account.equals("admin")&&password.equals("123456")){
+                    Intent intent = new  Intent(LoginActivity.this,MainActivity.class);
+                    startActivity(intent);
+                    finish();
+                }
+                else{
+                    Toast.makeText(LoginActivity.this,"account or password is invalid",Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+
+    }
+}
+
+```
+
+> 强制下线功能
+
+修改MainActivity中的代码，发送自定义广播：
+
+```java
+public class MainActivity extends AppCompatActivity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        Button forceOffline  = (Button)findViewById(R.id.force_offline);
+        forceOffline.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent=new Intent("com.sunlianglong.broadcastbestpractice.FORCE_OFFLINE");
+                sendBroadcast(intent);
+            }
+        });
+    }
+}
+
+```
+新建ForceOfflineReceiver类
+
+```java
+public class ForceOfflineReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(final Context context, Intent intent) {
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(context);//构建一个对话框
+        dialogBuilder.setTitle("Worning");
+        dialogBuilder.setMessage("You are to be offline.Please try to login again");
+        dialogBuilder.setCancelable(false);//将对话框设置为不可取消
+        dialogBuilder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override   //给对话框注册按钮
+            public void onClick(DialogInterface dialog, int which) {
+                ActivityCollector.finishAll();
+                //销毁所有活动
+                Intent intent = new Intent(context, LoginActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                //解释：http://www.cnblogs.com/lwbqqyumidi/p/3775479.html
+                context.startActivity(intent);
+                //重新启动LoginActivity
+            }
+        });
+        AlertDialog alertDialog = dialogBuilder.create();
+        //设置AlertDialog的类型，以保证在广播接收器中可以正常弹出。
+
+        alertDialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        alertDialog.show();
+        //因为Alert的显示需要依附于一个确定的Activity类。而以上做法就是声明我们要弹出的这个
+        // 提示框是一个系统的提示框，即全局性质的提示框，所以只要手机处于开机状态，无论它
+        // 现在处于何种界面之下，只要调用alertDialog.show()，就会弹出提示框来。
+    }
+}
+```
+针对为什么会需要FLAG_ACTIVITY_NEW_TASK标志，我从[here](http://www.cnblogs.com/lwbqqyumidi/p/3775479.html)得到了学习
+
+在AndroidManifest.xml中设置权限并进行注册，将LoginActivity设置为主活动
+
+```java
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW">
+
+ <receiver android:name=".ForceOfflineReceiver">
+            <intent-filter>
+                <action android:name="com.sunlianglong.broadcastbestpractice.FORCE_OFFLINE">
+                </action>
+            </intent-filter>
+        </receiver>
+```
+![image](D:photos\a.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
