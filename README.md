@@ -236,7 +236,7 @@ public class BaseActivity extends Activity {
 ```
 > 登录布局
 
-![image](D:photos\P.jpg)
+![](https://github.com/sunlianglong/Img/raw/master/Photos/P.jpg) 
 
 > 简单登录功能
 ```java
@@ -342,7 +342,7 @@ public class ForceOfflineReceiver extends BroadcastReceiver {
             </intent-filter>
         </receiver>
 ```
-![image](D:photos\a.png)
+![](https://github.com/sunlianglong/Img/raw/master/Photos/a.png) 
 
 
 
